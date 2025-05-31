@@ -18,8 +18,7 @@ pub fn install_service(exe_path: &str) -> Result<(), Box<dyn std::error::Error>>
 
     let manager_access = ServiceManagerAccess::CONNECT | ServiceManagerAccess::CREATE_SERVICE;
     let service_manager = ServiceManager::local_computer(None::<&str>, manager_access)?;
-
-
+    
     let service_info = ServiceInfo {
         name: OsString::from(SECURE_LINK_SERVICE_NAME),
         display_name: OsString::from(SECURE_LINK_SERVICE_NAME),
