@@ -1,0 +1,1 @@
+All service control methods would be called from app with admin rights

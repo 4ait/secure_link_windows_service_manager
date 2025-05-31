@@ -1,0 +1,9 @@
+[package]
+name = "secure_link_windows_service_manager"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+windows-service = "0.8.0"
+windows_credential_manager_rs = { git = "https://github.com/4ait/windows_credential_manager_rs.git" }
+windows-sys = "0.59.0"
