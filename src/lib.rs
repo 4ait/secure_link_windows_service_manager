@@ -1,20 +1,20 @@
 
 use std::ffi::OsString;
-use windows_service::{service::{ServiceAccess, ServiceState, ServiceErrorControl, ServiceInfo, ServiceStartType, ServiceType}, service_manager::{ServiceManager, ServiceManagerAccess}, Error};
+use windows_service::{service::{ServiceAccess, ServiceState, ServiceErrorControl, ServiceInfo, ServiceStartType, ServiceType}, service_manager::{ServiceManager, ServiceManagerAccess}};
 
 use std::{
     thread::sleep,
     time::{Duration, Instant},
 };
+use windows_credential_manager_rs::CredentialManager;
 use windows_service::Error::Winapi;
 use windows_sys::Win32::Foundation::ERROR_SERVICE_DOES_NOT_EXIST;
 
-static SECURE_LINK_SERVICE_EXE_PATH: &'static str = r#"C:\Users\winvm\source\secure_link_windows_service\target\debug\secure_link_windows_service.exe"#;
 
 static SECURE_LINK_SERVICE_NAME: &str = "Secure Link Service";
 static SECURE_LINK_SERVICE_AUTH_TOKEN_KEY: &str = "secure-link-service:auth-token-key";
 
-pub fn install_service() -> Result<(), Box<dyn std::error::Error>> {
+pub fn install_service(exe_path: &str) -> Result<(), Box<dyn std::error::Error>> {
 
     let manager_access = ServiceManagerAccess::CONNECT | ServiceManagerAccess::CREATE_SERVICE;
     let service_manager = ServiceManager::local_computer(None::<&str>, manager_access)?;
@@ -26,7 +26,7 @@ pub fn install_service() -> Result<(), Box<dyn std::error::Error>> {
         service_type: ServiceType::OWN_PROCESS,
         start_type: ServiceStartType::AutoStart,
         error_control: ServiceErrorControl::Normal,
-        executable_path: SECURE_LINK_SERVICE_EXE_PATH.into(),
+        executable_path: exe_path.into(),
         launch_arguments: vec![],
         dependencies: vec![],
         account_name: None, // run as System
@@ -82,8 +82,10 @@ pub fn uninstall_service() -> Result<(), Box<dyn std::error::Error>> {
 
 }
 
-pub fn start_service() -> Result<(), Box<dyn std::error::Error>> {
-
+pub fn start_service(auth_token: &str) -> Result<(), Box<dyn std::error::Error>> {
+    
+    CredentialManager::store_token(SECURE_LINK_SERVICE_AUTH_TOKEN_KEY, auth_token)?;
+    
     let manager_access = ServiceManagerAccess::CONNECT;
     let service_manager = ServiceManager::local_computer(None::<&str>, manager_access)?;
 
