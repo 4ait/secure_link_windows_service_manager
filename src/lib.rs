@@ -34,9 +34,10 @@ pub fn install_service(exe_path: &str) -> Result<(), Box<dyn std::error::Error>>
     };
 
     let service = service_manager.create_service(&service_info, ServiceAccess::CHANGE_CONFIG)?;
+
+    println!("Service {} is installed.", SECURE_LINK_SERVICE_NAME);
     
-    
-    service.set_description("Windows service example from windows-service-rs")?;
+    service.set_description("Secure Link Service")?;
     Ok(())
 
 }
@@ -69,7 +70,7 @@ pub fn uninstall_service() -> Result<(), Box<dyn std::error::Error>> {
             service_manager.open_service(SECURE_LINK_SERVICE_NAME, ServiceAccess::QUERY_STATUS)
         {
             if e.raw_os_error() == Some(ERROR_SERVICE_DOES_NOT_EXIST as i32) {
-                println!("{} is deleted.", SECURE_LINK_SERVICE_NAME);
+                println!("{} is uninstalled.", SECURE_LINK_SERVICE_NAME);
                 return Ok(());
             }
         }
@@ -103,6 +104,8 @@ pub fn start_service(
     
     service.start(&args)?;
     
+    println!("Service {} is started.", SECURE_LINK_SERVICE_NAME);
+    
     Ok(())
 
 }
@@ -116,6 +119,8 @@ pub fn stop_service() -> Result<(), Box<dyn std::error::Error>> {
     let service = service_manager.open_service(SECURE_LINK_SERVICE_NAME, service_access)?;
     
     service.stop()?;
+
+    println!("Service {} is stopped.", SECURE_LINK_SERVICE_NAME);
 
     Ok(())
 
