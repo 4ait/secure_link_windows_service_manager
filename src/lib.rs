@@ -1,5 +1,5 @@
 
-use std::ffi::OsString;
+use std::ffi::{OsString};
 use windows_service::{service::{ServiceAccess, ServiceState, ServiceErrorControl, ServiceInfo, ServiceStartType, ServiceType}, service_manager::{ServiceManager, ServiceManagerAccess}};
 
 use std::{
@@ -97,9 +97,10 @@ pub fn start_service(
     let service_access = ServiceAccess::START;
     let service = service_manager.open_service(SECURE_LINK_SERVICE_NAME, service_access)?;
     
-    let args = vec![
-        secure_link_server_host.to_string(),
-        secure_link_server_port.to_string()
+    
+    let args: Vec<OsString> = vec![
+        OsString::from(secure_link_server_host),
+        OsString::from(format!("{}", secure_link_server_port))
     ];
     
     service.start(&args)?;
