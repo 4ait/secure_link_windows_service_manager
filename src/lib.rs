@@ -65,7 +65,7 @@ pub fn uninstall_service() -> Result<(), Box<dyn std::error::Error>> {
     let start = Instant::now();
     let timeout = Duration::from_secs(5);
     while start.elapsed() < timeout {
-        if let Err(windows_service::Error::Winapi(e)) =
+        if let Err(Winapi(e)) =
             service_manager.open_service(SECURE_LINK_SERVICE_NAME, ServiceAccess::QUERY_STATUS)
         {
             if e.raw_os_error() == Some(ERROR_SERVICE_DOES_NOT_EXIST as i32) {
