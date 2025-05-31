@@ -8,6 +8,7 @@ use std::{
 };
 use windows_credential_manager_rs::CredentialManager;
 use windows_service::Error::Winapi;
+use windows_service::service::ServiceExitCode;
 use windows_sys::Win32::Foundation::ERROR_SERVICE_DOES_NOT_EXIST;
 
 
@@ -87,27 +88,49 @@ pub fn start_service(
     secure_link_server_port: u16,
     auth_token: &str
 ) -> Result<(), Box<dyn std::error::Error>> {
-    
+
     CredentialManager::store(SECURE_LINK_SERVICE_AUTH_TOKEN_KEY, auth_token)?;
-    
+
     let manager_access = ServiceManagerAccess::CONNECT;
     let service_manager = ServiceManager::local_computer(None::<&str>, manager_access)?;
 
     let service_access = ServiceAccess::START;
     let service = service_manager.open_service(SECURE_LINK_SERVICE_NAME, service_access)?;
 
-
     let args: Vec<OsString> = vec![
         OsString::from(secure_link_server_host),
         OsString::from(format!("{}", secure_link_server_port))
     ];
-    
+
     service.start(&args)?;
 
-    println!("Service {} is started.", SECURE_LINK_SERVICE_NAME);
-    
-    Ok(())
+    let start = Instant::now();
+    let timeout = Duration::from_secs(5);
 
+    while start.elapsed() < timeout {
+        let status = service.query_status()?;
+
+        match status.current_state {
+            ServiceState::Running => {
+                println!("Service {} is started.", SECURE_LINK_SERVICE_NAME);
+                return Ok(());
+            }
+            ServiceState::Stopped => {
+                match status.exit_code {
+                    ServiceExitCode::ServiceSpecific(5/*FAILED_UNAUTHORIZED*/) => {
+                        return Err("unauthorized".into());
+                    }
+                    _ => return Err(format!("Service {} is stopped", SECURE_LINK_SERVICE_NAME).into())
+                }
+            }
+            _ => {}
+        }
+
+        sleep(Duration::from_millis(100));
+    }
+
+    // If we exit the loop without returning, it means we timed out
+    Err(format!("Service {} is not running after ms: {}", SECURE_LINK_SERVICE_NAME, timeout.as_millis()).into())
 }
 
 pub fn stop_service() -> Result<(), Box<dyn std::error::Error>> {
