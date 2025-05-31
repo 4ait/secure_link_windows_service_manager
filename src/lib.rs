@@ -82,7 +82,11 @@ pub fn uninstall_service() -> Result<(), Box<dyn std::error::Error>> {
 
 }
 
-pub fn start_service(auth_token: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn start_service(
+    secure_link_server_host: &str,
+    secure_link_server_port: u16,
+    auth_token: &str
+) -> Result<(), Box<dyn std::error::Error>> {
     
     CredentialManager::store_token(SECURE_LINK_SERVICE_AUTH_TOKEN_KEY, auth_token)?;
     
@@ -92,7 +96,12 @@ pub fn start_service(auth_token: &str) -> Result<(), Box<dyn std::error::Error>>
     let service_access = ServiceAccess::START;
     let service = service_manager.open_service(SECURE_LINK_SERVICE_NAME, service_access)?;
     
-    service.start(&Vec::<String>::new())?;
+    let args = vec![
+        secure_link_server_host.to_string(),
+        secure_link_server_port.to_string()
+    ];
+    
+    service.start(&args)?;
     
     Ok(())
 
