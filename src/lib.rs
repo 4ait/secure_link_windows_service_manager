@@ -89,22 +89,22 @@ pub fn start_service(
     auth_token: &str
 ) -> Result<(), Box<dyn std::error::Error>> {
     
-    CredentialManager::store_token(SECURE_LINK_SERVICE_AUTH_TOKEN_KEY, auth_token)?;
+    CredentialManager::store(SECURE_LINK_SERVICE_AUTH_TOKEN_KEY, auth_token)?;
     
     let manager_access = ServiceManagerAccess::CONNECT;
     let service_manager = ServiceManager::local_computer(None::<&str>, manager_access)?;
 
     let service_access = ServiceAccess::START;
     let service = service_manager.open_service(SECURE_LINK_SERVICE_NAME, service_access)?;
-    
-    
+
+
     let args: Vec<OsString> = vec![
         OsString::from(secure_link_server_host),
         OsString::from(format!("{}", secure_link_server_port))
     ];
     
     service.start(&args)?;
-    
+
     println!("Service {} is started.", SECURE_LINK_SERVICE_NAME);
     
     Ok(())

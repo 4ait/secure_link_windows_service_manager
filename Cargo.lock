@@ -220,7 +220,7 @@ checksum = "09ec2a7bb152e2252b53fa7803150007879548bc709c039df7627cabbd05d469"
 [[package]]
 name = "windows_credential_manager_rs"
 version = "0.1.0"
-source = "git+https://github.com/4ait/windows_credential_manager_rs.git#b904b9e329d4d99a29584b9c27c881c9a1d533dc"
+source = "git+https://github.com/4ait/windows_credential_manager_rs.git#0413e4524b64c693b1f45fcfee4d5ef010aa551a"
 dependencies = [
  "windows",
 ]
