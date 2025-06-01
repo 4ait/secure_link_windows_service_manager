@@ -127,41 +127,55 @@ pub fn start_service(
     auth_token: &str,
     service_log_file_path: &str,
 ) -> Result<(), SecureLinkServiceError> {
+    
+    let current_status = query_status()?;
 
-    CredentialManager::store(SECURE_LINK_SERVICE_AUTH_TOKEN_KEY, auth_token)
-        .map_err(|e| SecureLinkServiceError::CredentialManagerError(e))?;
+    if current_status.current_state == ServiceState::Stopped {
 
-    let manager_access = ServiceManagerAccess::CONNECT;
+        CredentialManager::store(SECURE_LINK_SERVICE_AUTH_TOKEN_KEY, auth_token)
+            .map_err(|e| SecureLinkServiceError::CredentialManagerError(e))?;
 
-    let service_manager =
-        ServiceManager::local_computer(None::<&str>, manager_access)
+        let manager_access = ServiceManagerAccess::CONNECT;
+
+        let service_manager =
+            ServiceManager::local_computer(None::<&str>, manager_access)
+                .map_err(|e| SecureLinkServiceError::WindowsServiceApiError(Box::new(e)))?;
+
+        let service_access = ServiceAccess::START;
+
+        let service =
+            service_manager.open_service(SECURE_LINK_SERVICE_NAME, service_access)
+                .map_err(|e| SecureLinkServiceError::WindowsServiceApiError(Box::new(e)))?;
+
+        let args: Vec<OsString> = vec![
+            OsString::from(secure_link_server_host),
+            OsString::from(format!("{}", secure_link_server_port)),
+            OsString::from(service_log_file_path),
+        ];
+
+        service.start(&args)
             .map_err(|e| SecureLinkServiceError::WindowsServiceApiError(Box::new(e)))?;
-
-    let service_access = ServiceAccess::START;
-
-    let service =
-        service_manager.open_service(SECURE_LINK_SERVICE_NAME, service_access)
-            .map_err(|e| SecureLinkServiceError::WindowsServiceApiError(Box::new(e)))?;
-
-    let args: Vec<OsString> = vec![
-        OsString::from(secure_link_server_host),
-        OsString::from(format!("{}", secure_link_server_port)),
-        OsString::from(service_log_file_path),
-    ];
-
-    service.start(&args)
-        .map_err(|e| SecureLinkServiceError::WindowsServiceApiError(Box::new(e)))?;
+        
+    }
     
     if poll_for_running_status(Duration::from_secs(5))? {
         Ok(())
-    }else   
+    }else
     {   // If we exit the loop without returning, it means we timed out
         Err(SecureLinkServiceError::NotRunningAfterTimeoutError)
     }
-  
+
 }
 
 pub fn stop_service() -> Result<(), SecureLinkServiceError> {
+
+
+    let current_status = query_status()?;
+
+    if current_status.current_state == ServiceState::Stopped {
+        return Ok(())
+    }
+
 
     let manager_access = ServiceManagerAccess::CONNECT;
 
@@ -183,7 +197,7 @@ pub fn stop_service() -> Result<(), SecureLinkServiceError> {
     if poll_for_stopped_status(Duration::from_secs(5))? {
         Ok(())
     }else
-    {  
+    {
         Err(SecureLinkServiceError::NotStoppedAfterTimeoutError)
     }
 
@@ -209,7 +223,7 @@ pub fn is_service_installed() ->  Result<bool, SecureLinkServiceError> {
             
             match err {
                 Winapi(winapi_error) => {
-                    
+
                     let os_error_code = 
                         winapi_error
                             .raw_os_error()
@@ -258,7 +272,7 @@ pub fn poll_for_running_status(timeout: Duration) -> Result<bool, SecureLinkServ
     while start.elapsed() < timeout {
 
         let status = query_status()?;
-        
+
         match status.current_state {
             ServiceState::Running => {
                 println!("Service {} is started.", SECURE_LINK_SERVICE_NAME);
@@ -286,9 +300,9 @@ pub fn poll_for_running_status(timeout: Duration) -> Result<bool, SecureLinkServ
 
         sleep(Duration::from_millis(200));
     }
-    
+
     Ok(false)
-    
+
 }
 
 pub fn poll_for_stopped_status(timeout: Duration) -> Result<bool, SecureLinkServiceError> {
@@ -329,5 +343,5 @@ pub fn query_status() -> Result<ServiceStatus, SecureLinkServiceError> {
 
     Ok(service.query_status()
         .map_err(|e| SecureLinkServiceError::WindowsServiceApiError(Box::new(e)))?)
-    
+
 }
