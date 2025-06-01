@@ -171,6 +171,9 @@ pub fn start_service(
     }
     
     if poll_for_running_status(Duration::from_secs(30))? {
+
+        println!("Service {} started.", SECURE_LINK_SERVICE_NAME);
+        
         Ok(())
     }else
     {   // If we exit the loop without returning, it means we timed out
@@ -199,14 +202,15 @@ pub fn stop_service() -> Result<(), SecureLinkServiceError> {
     let service =
         service_manager.open_service(SECURE_LINK_SERVICE_NAME, service_access)
             .map_err(|e| SecureLinkServiceError::WindowsServiceApiError(Box::new(e)))?;
-    
-    let status = service.stop()
+
+    service.stop()
         .map_err(|e| SecureLinkServiceError::WindowsServiceApiError(Box::new(e)))?;
-
-    println!("Service {} stop sent. New status: {:?}", SECURE_LINK_SERVICE_NAME, status);
-
+    
 
     if poll_for_stopped_status(Duration::from_secs(5))? {
+
+        println!("Service {} stopped.", SECURE_LINK_SERVICE_NAME);
+        
         Ok(())
     }else
     {
@@ -297,17 +301,17 @@ pub fn poll_for_running_status(timeout: Duration) -> Result<bool, SecureLinkServ
                         Err(SecureLinkServiceError::ServiceSpecificError(code))
                     }
                     ServiceExitCode::Win32(code) => {
-                        
+
                         //may happen on frequent start/stop
                         if code == 0 {
                             continue
                         }
-                        else 
+                        else
                         {
                             Err(SecureLinkServiceError::ServiceWin32Error(code))
                         }
-                        
-                      
+
+
                     }
 
                 }
