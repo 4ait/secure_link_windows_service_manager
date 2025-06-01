@@ -6,10 +6,17 @@ use std::{
     thread::sleep,
     time::{Duration, Instant},
 };
-use windows_credential_manager_rs::CredentialManager;
+
 use windows_service::Error::Winapi;
 use windows_service::service::{ServiceExitCode, ServiceStatus};
 use windows_sys::Win32::Foundation::ERROR_SERVICE_DOES_NOT_EXIST;
+use windows_sys::Win32::System::Registry::HKEY_LOCAL_MACHINE;
+use winreg::RegKey;
+use winreg::types::ToRegValue;
+
+static SECURE_LINK_SERVICE_NAME: &str = "Secure Link Service";
+static REGISTRY_KEY_PATH: &str = "SOFTWARE\\SecureLinkService";
+static REGISTRY_AUTH_TOKEN_VALUE: &str = "Auth Token";
 
 #[derive(thiserror::Error, Debug)]
 pub enum SecureLinkServiceError {
@@ -25,14 +32,18 @@ pub enum SecureLinkServiceError {
     NotStoppedAfterTimeoutError,
     #[error("WindowsServiceApiError")]
     WindowsServiceApiError(Box<dyn std::error::Error>),
-    #[error("CredentialManagerError")]
-    CredentialManagerError(Box<dyn std::error::Error>),
+    #[error("WindowsRegistryError")]
+    WindowsRegistryError(Box<dyn std::error::Error>),
     #[error("NetworkError")]
     NetworkError(Box<dyn std::error::Error>)
 }
+fn store_entry_in_registry<T: ToRegValue>(key: &str, entry: &T) -> Result<(), Box<dyn std::error::Error>> {
+    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+    let reg_key = hklm.create_subkey(REGISTRY_KEY_PATH)?.0;
+    reg_key.set_value(key, entry)?;
+    Ok(())
+}
 
-static SECURE_LINK_SERVICE_NAME: &str = "Secure Link Service";
-static SECURE_LINK_SERVICE_AUTH_TOKEN_KEY: &str = "secure-link-service:auth-token-key";
 
 pub fn install_service(exe_path: &str) -> Result<(), SecureLinkServiceError> {
 
@@ -131,12 +142,10 @@ pub fn start_service(
     let current_status = query_status()?;
 
     if current_status.current_state == ServiceState::Stopped {
-
-        CredentialManager::store(SECURE_LINK_SERVICE_AUTH_TOKEN_KEY, auth_token)
-            .map_err(|e| SecureLinkServiceError::CredentialManagerError(e))?;
-
-        println!("stored {auth_token} auth token in cred manager, key {SECURE_LINK_SERVICE_AUTH_TOKEN_KEY}");
-
+        
+        store_entry_in_registry(REGISTRY_AUTH_TOKEN_VALUE, &auth_token.to_string())
+            .map_err(|e| SecureLinkServiceError::WindowsRegistryError(e))?;
+        
         let manager_access = ServiceManagerAccess::CONNECT;
 
         let service_manager =
