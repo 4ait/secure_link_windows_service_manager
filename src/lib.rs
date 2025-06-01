@@ -158,7 +158,7 @@ pub fn start_service(
         
     }
     
-    if poll_for_running_status(Duration::from_secs(5))? {
+    if poll_for_running_status(Duration::from_secs(30))? {
         Ok(())
     }else
     {   // If we exit the loop without returning, it means we timed out
@@ -253,12 +253,8 @@ pub fn is_service_running() -> Result<bool, SecureLinkServiceError> {
     let is_running =
         match status.current_state {
             ServiceState::StartPending => true,
-            ServiceState::StopPending => true,
             ServiceState::Running => true,
-            ServiceState::ContinuePending => true,
-            ServiceState::PausePending => false,
-            ServiceState::Paused => false,
-            ServiceState::Stopped => false
+            _ => false
      };
     
     Ok(is_running)
