@@ -135,6 +135,8 @@ pub fn start_service(
         CredentialManager::store(SECURE_LINK_SERVICE_AUTH_TOKEN_KEY, auth_token)
             .map_err(|e| SecureLinkServiceError::CredentialManagerError(e))?;
 
+        println!("stored {auth_token} auth token in cred manager, key {SECURE_LINK_SERVICE_AUTH_TOKEN_KEY}");
+
         let manager_access = ServiceManagerAccess::CONNECT;
 
         let service_manager =
