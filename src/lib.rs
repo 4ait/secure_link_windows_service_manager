@@ -8,7 +8,7 @@ use std::{
 };
 use windows_credential_manager_rs::CredentialManager;
 use windows_service::Error::Winapi;
-use windows_service::service::ServiceExitCode;
+use windows_service::service::{ServiceExitCode, ServiceStatus};
 use windows_sys::Win32::Foundation::ERROR_SERVICE_DOES_NOT_EXIST;
 
 #[derive(thiserror::Error, Debug)]
@@ -21,6 +21,8 @@ pub enum SecureLinkServiceError {
     ServiceWin32Error(u32),
     #[error("NotRunningAfterTimeoutError")]
     NotRunningAfterTimeoutError,
+    #[error("NotStoppedAfterTimeoutError")]
+    NotStoppedAfterTimeoutError,
     #[error("WindowsServiceApiError")]
     WindowsServiceApiError(Box<dyn std::error::Error>),
     #[error("CredentialManagerError")]
@@ -135,7 +137,7 @@ pub fn start_service(
         ServiceManager::local_computer(None::<&str>, manager_access)
             .map_err(|e| SecureLinkServiceError::WindowsServiceApiError(Box::new(e)))?;
 
-    let service_access = ServiceAccess::START | ServiceAccess::QUERY_STATUS;
+    let service_access = ServiceAccess::START;
 
     let service =
         service_manager.open_service(SECURE_LINK_SERVICE_NAME, service_access)
@@ -149,46 +151,14 @@ pub fn start_service(
 
     service.start(&args)
         .map_err(|e| SecureLinkServiceError::WindowsServiceApiError(Box::new(e)))?;
-
-    let start = Instant::now();
-    let timeout = Duration::from_secs(5);
-
-    while start.elapsed() < timeout {
-
-        let status =
-            service.query_status()
-                .map_err(|e| SecureLinkServiceError::WindowsServiceApiError(Box::new(e)))?;
-
-        match status.current_state {
-            ServiceState::Running => {
-                println!("Service {} is started.", SECURE_LINK_SERVICE_NAME);
-                return Ok(());
-            }
-
-            ServiceState::Stopped => {
-                return match status.exit_code {
-
-                    ServiceExitCode::ServiceSpecific(5/*FAILED_UNAUTHORIZED*/) => {
-                        Err(SecureLinkServiceError::UnauthorizedError)
-                    }
-                    ServiceExitCode::ServiceSpecific(code) => {
-                        Err(SecureLinkServiceError::ServiceSpecificError(code))
-                    }
-                    ServiceExitCode::Win32(code) => {
-                        Err(SecureLinkServiceError::ServiceWin32Error(code))
-                    }
-
-                }
-            }
-
-            _ => {}
-        }
-
-        sleep(Duration::from_millis(100));
+    
+    if poll_for_running_status(Duration::from_secs(5))? {
+        Ok(())
+    }else   
+    {   // If we exit the loop without returning, it means we timed out
+        Err(SecureLinkServiceError::NotRunningAfterTimeoutError)
     }
-
-    // If we exit the loop without returning, it means we timed out
-    Err(SecureLinkServiceError::NotRunningAfterTimeoutError)
+  
 }
 
 pub fn stop_service() -> Result<(), SecureLinkServiceError> {
@@ -207,9 +177,15 @@ pub fn stop_service() -> Result<(), SecureLinkServiceError> {
     service.stop()
         .map_err(|e| SecureLinkServiceError::WindowsServiceApiError(Box::new(e)))?;
 
-    println!("Service {} is stopped.", SECURE_LINK_SERVICE_NAME);
+    println!("Service {} stop sent.", SECURE_LINK_SERVICE_NAME);
 
-    Ok(())
+
+    if poll_for_stopped_status(Duration::from_secs(5))? {
+        Ok(())
+    }else
+    {  
+        Err(SecureLinkServiceError::NotStoppedAfterTimeoutError)
+    }
 
 }
 
@@ -233,8 +209,7 @@ pub fn is_service_installed() ->  Result<bool, SecureLinkServiceError> {
             
             match err {
                 Winapi(winapi_error) => {
-
-
+                    
                     let os_error_code = 
                         winapi_error
                             .raw_os_error()
@@ -259,20 +234,7 @@ pub fn is_service_installed() ->  Result<bool, SecureLinkServiceError> {
 
 pub fn is_service_running() -> Result<bool, SecureLinkServiceError> {
 
-    let manager_access = ServiceManagerAccess::CONNECT;
-    let service_manager =
-        ServiceManager::local_computer(None::<&str>, manager_access)
-            .map_err(|e| SecureLinkServiceError::WindowsServiceApiError(Box::new(e)))?;
-
-    let service_access = ServiceAccess::QUERY_STATUS;
-
-    let service =
-        service_manager.open_service(SECURE_LINK_SERVICE_NAME, service_access)
-            .map_err(|e| SecureLinkServiceError::WindowsServiceApiError(Box::new(e)))?;
-
-
-    let status = service.query_status()
-        .map_err(|e| SecureLinkServiceError::WindowsServiceApiError(Box::new(e)))?;
+    let status = query_status()?;
 
     let is_running =
         match status.current_state {
@@ -287,4 +249,85 @@ pub fn is_service_running() -> Result<bool, SecureLinkServiceError> {
     
     Ok(is_running)
 
+}
+
+pub fn poll_for_running_status(timeout: Duration) -> Result<bool, SecureLinkServiceError> {
+
+    let start = Instant::now();
+
+    while start.elapsed() < timeout {
+
+        let status = query_status()?;
+        
+        match status.current_state {
+            ServiceState::Running => {
+                println!("Service {} is started.", SECURE_LINK_SERVICE_NAME);
+                return Ok(true);
+            }
+
+            ServiceState::Stopped => {
+                return match status.exit_code {
+
+                    ServiceExitCode::ServiceSpecific(5/*FAILED_UNAUTHORIZED*/) => {
+                        Err(SecureLinkServiceError::UnauthorizedError)
+                    }
+                    ServiceExitCode::ServiceSpecific(code) => {
+                        Err(SecureLinkServiceError::ServiceSpecificError(code))
+                    }
+                    ServiceExitCode::Win32(code) => {
+                        Err(SecureLinkServiceError::ServiceWin32Error(code))
+                    }
+
+                }
+            }
+
+            _ => {}
+        }
+
+        sleep(Duration::from_millis(200));
+    }
+    
+    Ok(false)
+    
+}
+
+pub fn poll_for_stopped_status(timeout: Duration) -> Result<bool, SecureLinkServiceError> {
+
+    let start = Instant::now();
+
+    while start.elapsed() < timeout {
+
+        let status = query_status()?;
+
+        match status.current_state {
+            ServiceState::Stopped => {
+                return Ok(true);
+            }
+            _ => {}
+        }
+
+        sleep(Duration::from_millis(200));
+    }
+
+    Ok(false)
+
+}
+
+pub fn query_status() -> Result<ServiceStatus, SecureLinkServiceError> {
+
+    let manager_access = ServiceManagerAccess::CONNECT;
+
+    let service_manager =
+        ServiceManager::local_computer(None::<&str>, manager_access)
+            .map_err(|e| SecureLinkServiceError::WindowsServiceApiError(Box::new(e)))?;
+
+    let service_access = ServiceAccess::QUERY_STATUS;
+
+    let service =
+        service_manager.open_service(SECURE_LINK_SERVICE_NAME, service_access)
+            .map_err(|e| SecureLinkServiceError::WindowsServiceApiError(Box::new(e)))?;
+
+    Ok(service.query_status()
+        .map_err(|e| SecureLinkServiceError::WindowsServiceApiError(Box::new(e)))?)
+    
 }
