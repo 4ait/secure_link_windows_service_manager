@@ -142,10 +142,10 @@ pub fn start_service(
     let current_status = query_status()?;
 
     if current_status.current_state == ServiceState::Stopped {
-        
+
         store_entry_in_registry(REGISTRY_AUTH_TOKEN_VALUE, &auth_token.to_string())
             .map_err(|e| SecureLinkServiceError::WindowsRegistryError(e))?;
-        
+
         let manager_access = ServiceManagerAccess::CONNECT;
 
         let service_manager =
@@ -200,10 +200,10 @@ pub fn stop_service() -> Result<(), SecureLinkServiceError> {
         service_manager.open_service(SECURE_LINK_SERVICE_NAME, service_access)
             .map_err(|e| SecureLinkServiceError::WindowsServiceApiError(Box::new(e)))?;
     
-    service.stop()
+    let status = service.stop()
         .map_err(|e| SecureLinkServiceError::WindowsServiceApiError(Box::new(e)))?;
 
-    println!("Service {} stop sent.", SECURE_LINK_SERVICE_NAME);
+    println!("Service {} stop sent. New status: {:?}", SECURE_LINK_SERVICE_NAME, status);
 
 
     if poll_for_stopped_status(Duration::from_secs(5))? {
