@@ -135,7 +135,7 @@ pub fn start_service(
         ServiceManager::local_computer(None::<&str>, manager_access)
             .map_err(|e| SecureLinkServiceError::WindowsServiceApiError(Box::new(e)))?;
 
-    let service_access = ServiceAccess::START;
+    let service_access = ServiceAccess::START | ServiceAccess::QUERY_STATUS;
 
     let service =
         service_manager.open_service(SECURE_LINK_SERVICE_NAME, service_access)
