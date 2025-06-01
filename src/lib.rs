@@ -297,7 +297,17 @@ pub fn poll_for_running_status(timeout: Duration) -> Result<bool, SecureLinkServ
                         Err(SecureLinkServiceError::ServiceSpecificError(code))
                     }
                     ServiceExitCode::Win32(code) => {
-                        Err(SecureLinkServiceError::ServiceWin32Error(code))
+                        
+                        //may happen on frequent start/stop
+                        if code == 0 {
+                            continue
+                        }
+                        else 
+                        {
+                            Err(SecureLinkServiceError::ServiceWin32Error(code))
+                        }
+                        
+                      
                     }
 
                 }
