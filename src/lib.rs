@@ -146,12 +146,12 @@ pub fn start_service(
         let service =
             service_manager.open_service(SECURE_LINK_SERVICE_NAME, service_access)
                 .map_err(|e| SecureLinkServiceError::WindowsServiceApiError(Box::new(e)))?;
-        
-        
+
+
         let args: Vec<OsString> = vec![
-            OsString::from(format!(r#"--set-host="{}""#, secure_link_server_host)),
+            OsString::from(format!(r#"--set-host={}"#, secure_link_server_host)),
             OsString::from(format!("--set-port={}", secure_link_server_port)),
-            OsString::from(format!(r#"--set-log-file-path="{}""#, service_log_file_path)),
+            OsString::from(format!(r#"--set-log-file-path={}"#, service_log_file_path)),
         ];
 
         service.start(&args)
