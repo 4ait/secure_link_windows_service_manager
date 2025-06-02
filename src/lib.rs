@@ -263,16 +263,8 @@ pub fn is_service_installed() ->  Result<bool, SecureLinkServiceError> {
 }
 
 pub fn is_service_running() -> Result<bool, SecureLinkServiceError> {
-
-
+    
     let status = query_status()?;
-    
-    println!("Service {:?} status.", status);
-
-    let sys_main_status = query_status_sys_main()?;
-    
-    println!("Service {:?} status.", sys_main_status);
-    
 
     let is_running =
         match status.current_state {
@@ -369,25 +361,6 @@ pub fn query_status() -> Result<ServiceStatus, SecureLinkServiceError> {
 
     let service =
         service_manager.open_service(SECURE_LINK_SERVICE_NAME, service_access)
-            .map_err(|e| SecureLinkServiceError::WindowsServiceApiError(Box::new(e)))?;
-
-    Ok(service.query_status()
-        .map_err(|e| SecureLinkServiceError::WindowsServiceApiError(Box::new(e)))?)
-
-}
-
-pub fn query_status_sys_main() -> Result<ServiceStatus, SecureLinkServiceError> {
-
-    let manager_access = ServiceManagerAccess::CONNECT;
-
-    let service_manager =
-        ServiceManager::local_computer(None::<&str>, manager_access)
-            .map_err(|e| SecureLinkServiceError::WindowsServiceApiError(Box::new(e)))?;
-
-    let service_access = ServiceAccess::QUERY_STATUS;
-
-    let service =
-        service_manager.open_service("SysMain", service_access)
             .map_err(|e| SecureLinkServiceError::WindowsServiceApiError(Box::new(e)))?;
 
     Ok(service.query_status()
