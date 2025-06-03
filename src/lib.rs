@@ -8,11 +8,14 @@ use std::{
 };
 
 use windows_service::Error::Winapi;
-use windows_service::service::{ServiceExitCode, ServiceStatus};
+
 use windows_sys::Win32::Foundation::ERROR_SERVICE_DOES_NOT_EXIST;
 use windows_sys::Win32::System::Registry::HKEY_LOCAL_MACHINE;
 use winreg::RegKey;
 use winreg::types::ToRegValue;
+
+pub use windows_service::service::{ServiceExitCode};
+pub use windows_service::service::ServiceStatus;
 
 static SECURE_LINK_SERVICE_NAME: &str = "Secure Link Service";
 static REGISTRY_KEY_PATH: &str = "SOFTWARE\\SecureLinkService";
@@ -158,6 +161,7 @@ pub fn start_service(
             service_manager.open_service(SECURE_LINK_SERVICE_NAME, service_access)
                 .map_err(|e| SecureLinkServiceError::WindowsServiceApiError(Box::new(e)))?;
 
+        //sc.exe failure "Secure Link Service" reset= 0 actions= "restart/5000/restart/5000/restart/5000"
 
         let args: Vec<OsString> = vec![
             OsString::from(format!(r#"--set-host={}"#, secure_link_server_host)),
