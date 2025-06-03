@@ -6,7 +6,7 @@ use std::{
     thread::sleep,
     time::{Duration, Instant},
 };
-
+use std::process::Command;
 use windows_service::Error::Winapi;
 
 use windows_sys::Win32::Foundation::ERROR_SERVICE_DOES_NOT_EXIST;
@@ -74,9 +74,18 @@ pub fn install_service(exe_path: &str) -> Result<(), SecureLinkServiceError> {
             .map_err(|e| SecureLinkServiceError::WindowsServiceApiError(Box::new(e)))?;
 
     println!("Service {} is installed.", SECURE_LINK_SERVICE_NAME);
+
+    Command::new("sc.exe")
+        .args(&["failure", SECURE_LINK_SERVICE_NAME, "reset=", "0", "actions=", "restart/5000/restart/5000/restart/5000"])
+        .output().map_err(|e| SecureLinkServiceError::WindowsServiceApiError(Box::new(e)))?;
+
+    Command::new("sc.exe")
+        .args(&["config", SECURE_LINK_SERVICE_NAME, "start=", "delayed-auto"])
+        .output().map_err(|e| SecureLinkServiceError::WindowsServiceApiError(Box::new(e)))?;
     
     service.set_description("Secure Link Service")
         .map_err(|e| SecureLinkServiceError::WindowsServiceApiError(Box::new(e)))?;
+    
     Ok(())
 
 }
