@@ -1,6 +1,6 @@
 
 use std::ffi::{OsString};
-use windows_service::{service::{ServiceAccess, ServiceState, ServiceErrorControl, ServiceInfo, ServiceStartType, ServiceType}, service_manager::{ServiceManager, ServiceManagerAccess}};
+use windows_service::{service::{ServiceAccess, ServiceStatus, ServiceErrorControl, ServiceInfo, ServiceStartType, ServiceType}, service_manager::{ServiceManager, ServiceManagerAccess}};
 
 use std::{
     thread::sleep,
@@ -15,8 +15,7 @@ use winreg::RegKey;
 use winreg::types::ToRegValue;
 
 pub use windows_service::service::{ServiceExitCode};
-pub use windows_service::service::ServiceStatus;
-
+pub use windows_service::service::ServiceState;
 static SECURE_LINK_SERVICE_NAME: &str = "Secure Link Service";
 static REGISTRY_KEY_PATH: &str = "SOFTWARE\\SecureLinkService";
 static REGISTRY_AUTH_TOKEN_VALUE: &str = "Auth Token";
@@ -353,7 +352,11 @@ pub fn poll_for_stopped_status(timeout: Duration) -> Result<bool, SecureLinkServ
 
 }
 
-pub fn query_status() -> Result<ServiceStatus, SecureLinkServiceError> {
+pub fn query_state() -> Result<ServiceState, SecureLinkServiceError> {
+    Ok(query_status()?.current_state)
+}
+
+fn query_status() -> Result<ServiceStatus, SecureLinkServiceError> {
 
     let manager_access = ServiceManagerAccess::CONNECT;
 
